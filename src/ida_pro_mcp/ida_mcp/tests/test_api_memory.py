@@ -22,7 +22,7 @@ from ..api_memory import (
     patch,
     put_int,
 )
-from ..utils import read_bytes_bss_safe, read_int_bss_safe
+from ..utils import get_func_info, get_segment_info, read_bytes_bss_safe, read_int_bss_safe
 
 
 CRACKME_FORMAT = "0x201f"
@@ -250,14 +250,14 @@ def _find_unloaded_addr() -> int | None:
     import idautils
 
     for seg_ea in idautils.Segments():
-        seg = idaapi.getseg(seg_ea)
+        seg = get_segment_info(seg_ea)
         if seg is None:
             continue
-        if seg.type == idaapi.SEG_BSS:
+        if seg.get_type() == idaapi.SEG_BSS:
             return seg.start_ea
 
     for seg_ea in idautils.Segments():
-        seg = idaapi.getseg(seg_ea)
+        seg = get_segment_info(seg_ea)
         if seg is None:
             continue
         if not ida_bytes.is_loaded(seg.start_ea):
@@ -269,13 +269,12 @@ def _find_unloaded_addr() -> int | None:
 def _find_named_bss_symbol() -> str | None:
     """Find a named global whose starting byte is not loaded (BSS-like)."""
     import ida_bytes
-    import idaapi
     import idautils
 
     for addr, name in idautils.Names():
         if not name:
             continue
-        if idaapi.get_func(addr):
+        if get_func_info(addr):
             continue
         if not ida_bytes.is_loaded(addr):
             return name

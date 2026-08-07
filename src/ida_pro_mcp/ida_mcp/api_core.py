@@ -34,6 +34,8 @@ from .utils import (
     Page,
     ImportQuery,
     get_function,
+    get_func_info,
+    get_segment_info,
     normalize_dict_list,
     normalize_list_input,
     parse_address,
@@ -238,11 +240,11 @@ def _collect_imports() -> list[Import]:
 
 
 def _segment_name_for_ea(ea: int) -> str | None:
-    seg = idaapi.getseg(ea)
+    seg = get_segment_info(ea)
     if not seg:
         return None
     try:
-        return idaapi.get_segm_name(seg)
+        return ida_segment.get_segment_name(ea)
     except Exception:
         return None
 
@@ -257,7 +259,7 @@ def _collect_entities(kind: str) -> list[dict]:
     if kind == "functions":
         rows: list[dict] = []
         for ea in idautils.Functions():
-            fn = idaapi.get_func(ea)
+            fn = get_func_info(ea)
             if not fn:
                 continue
             size_int = fn.end_ea - fn.start_ea
@@ -277,7 +279,7 @@ def _collect_entities(kind: str) -> list[dict]:
     if kind == "globals":
         rows = []
         for ea, name in idautils.Names():
-            if idaapi.get_func(ea) or name is None:
+            if get_func_info(ea) or name is None:
                 continue
             rows.append(
                 {
@@ -321,7 +323,7 @@ def _collect_entities(kind: str) -> list[dict]:
         rows = []
         imports_by_ea = {int(imp["addr"], 16): imp for imp in _collect_imports()}
         for ea, name in idautils.Names():
-            is_function = bool(idaapi.get_func(ea))
+            is_function = bool(get_func_info(ea))
             is_import = ea in imports_by_ea
             rows.append(
                 {
@@ -592,7 +594,7 @@ def func_query(
 
     all_functions: list[dict] = []
     for addr in idautils.Functions():
-        fn = idaapi.get_func(addr)
+        fn = get_func_info(addr)
         if not fn:
             continue
         size_int = fn.end_ea - fn.start_ea
@@ -673,7 +675,7 @@ def list_globals(
     queries = normalize_dict_list(queries)
     all_globals: list[Global] = []
     for addr, name in idautils.Names():
-        if not idaapi.get_func(addr) and name is not None:
+        if not get_func_info(addr) and name is not None:
             all_globals.append(Global(addr=hex(addr), name=name))
 
     results = []
@@ -966,10 +968,10 @@ def _exec_segments() -> list[tuple[int, int]]:
     """Return [(start, end)] for executable segments in address order."""
     ranges: list[tuple[int, int]] = []
     for seg_ea in idautils.Segments():
-        seg = idaapi.getseg(seg_ea)
+        seg = get_segment_info(seg_ea)
         if not seg:
             continue
-        if not (seg.perm & idaapi.SEGPERM_EXEC):
+        if not (seg.get_perm() & idaapi.SEGPERM_EXEC):
             continue
         ranges.append((seg.start_ea, seg.end_ea))
     return ranges
@@ -978,7 +980,7 @@ def _exec_segments() -> list[tuple[int, int]]:
 def _all_segments() -> list[tuple[int, int]]:
     ranges: list[tuple[int, int]] = []
     for seg_ea in idautils.Segments():
-        seg = idaapi.getseg(seg_ea)
+        seg = get_segment_info(seg_ea)
         if seg:
             ranges.append((seg.start_ea, seg.end_ea))
     return ranges
@@ -1098,14 +1100,14 @@ def search_text(
                 if not lines:
                     continue
                 entry: SearchTextHit = {"addr": hex(head_ea), "matches": lines}
-                func = idaapi.get_func(head_ea)
+                func = get_func_info(head_ea)
                 if func is not None:
                     fname = ida_funcs.get_func_name(func.start_ea)
                     if fname:
                         entry["function"] = fname
-                seg = idaapi.getseg(head_ea)
+                seg = get_segment_info(head_ea)
                 if seg is not None:
-                    sname = ida_segment.get_segm_name(seg)
+                    sname = ida_segment.get_segment_name(head_ea)
                     if sname:
                         entry["segment"] = sname
                 hits.append(entry)

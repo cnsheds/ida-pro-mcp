@@ -29,6 +29,7 @@ from ..api_sigmaker import (
     find_xref_signatures,
 )
 from ..api_analysis import find_bytes
+from ..utils import get_func_info
 
 
 # ============================================================================
@@ -104,21 +105,20 @@ def test_make_signature_for_function_resolves_to_start():
     """Pass a mid-function address and verify the tool resolves it to the
     function start.  Also verify the name field matches IDA's own function
     name — this is the key behaviour that make_signature doesn't provide."""
-    import ida_funcs
     import idaapi
     import idautils
 
     # Find a function with at least 2 bytes so we can pick a mid-function addr
     func_ea = None
     for ea in idautils.Functions():
-        f = ida_funcs.get_func(ea)
+        f = get_func_info(ea)
         if f and f.end_ea - f.start_ea > 2:
             func_ea = f.start_ea
             break
     if func_ea is None:
         skip_test("no function with size > 2 found")
 
-    func = ida_funcs.get_func(func_ea)
+    func = get_func_info(func_ea)
     mid_addr = hex(func.start_ea + 1)  # one byte into the function
 
     result = make_signature_for_function(mid_addr)
@@ -207,8 +207,7 @@ def test_make_signature_for_range_valid():
     if not fn_addr:
         skip_test("binary has no functions")
 
-    import ida_funcs
-    func = ida_funcs.get_func(int(fn_addr, 16))
+    func = get_func_info(int(fn_addr, 16))
     if not func:
         skip_test("cannot get function object")
 

@@ -16,7 +16,7 @@ from ..framework import (
     get_any_function,
     get_data_address,
 )
-from ..utils import Function, ConvertedNumber
+from ..utils import ConvertedNumber, Function, get_func_info
 from ..api_core import (
     lookup_funcs,
     int_convert,
@@ -144,7 +144,7 @@ def test_lookup_funcs_interior_address():
         skip_test("binary has no functions")
 
     ea = int(fn_addr, 16)
-    func = idaapi.get_func(ea)
+    func = get_func_info(ea)
     if not func:
         skip_test("IDA could not retrieve the function object")
 

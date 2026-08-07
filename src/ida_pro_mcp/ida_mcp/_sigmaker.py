@@ -71,6 +71,7 @@ import string
 import typing
 
 import idaapi
+import ida_funcs
 import idc
 
 __author__ = "mahmoudimus"
@@ -844,7 +845,9 @@ class UniqueSignatureGenerator:
             raise Unexpected("Cannot create code signature for data")
 
         sig = Signature()
-        start_fn = idaapi.get_func(ea)
+        start_fn = ida_funcs.func_entry_info_t()
+        if not ida_funcs.get_func_entry_info(start_fn, ea):
+            start_fn = None
         bytes_since_last_check = 0
 
         # Seed-and-refine (issue #398): on the compiled SIMD path, scan the
@@ -1079,7 +1082,7 @@ def _seed_via_index(
 
 
 def _decode_function_for_anchors(
-    pfn: "idaapi.func_t",
+    pfn: "ida_funcs.func_entry_info_t",
     processor: "InstructionProcessor",
     cfg: "SigMakerConfig",
 ) -> list[_DecodedInstruction]:
@@ -1151,7 +1154,7 @@ class MinimalFunctionSignatureGenerator:
         self.progress_reporter = progress_reporter
 
     def generate(
-        self, pfn: "idaapi.func_t", cfg: SigMakerConfig
+        self, pfn: "ida_funcs.func_entry_info_t", cfg: SigMakerConfig
     ) -> GeneratedSignature:
         """Search the function body for the shortest unique signature.
 
@@ -1361,7 +1364,7 @@ class SignatureMaker:
         return GeneratedSignature(sig)
 
     def make_function_signature(
-        self, pfn: "idaapi.func_t", cfg: SigMakerConfig
+        self, pfn: "ida_funcs.func_entry_info_t", cfg: SigMakerConfig
     ) -> GeneratedSignature:
         """Find the shortest unique signature anywhere inside ``pfn``.
 

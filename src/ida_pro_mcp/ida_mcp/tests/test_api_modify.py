@@ -23,6 +23,7 @@ from ..api_modify import (
 )
 from ..api_memory import get_bytes, patch
 from ..api_core import lookup_funcs
+from ..utils import get_func_info
 
 
 CRACKME_MAIN = "0x123e"
@@ -378,9 +379,7 @@ def test_rename_local_missing_function_error():
 @test(binary="crackme03.elf")
 def test_define_undefine_func_roundtrip():
     """undefine removes an existing function and define_func recreates it with the same bounds."""
-    import idaapi
-
-    func = idaapi.get_func(int(CRACKME_FRAME_DUMMY, 16))
+    func = get_func_info(int(CRACKME_FRAME_DUMMY, 16))
     if not func:
         skip_test("frame_dummy function not present")
 
@@ -390,19 +389,19 @@ def test_define_undefine_func_roundtrip():
     try:
         undef_result = undefine({"addr": hex(start_ea), "end": hex(end_ea)})[0]
         assert "error" not in undef_result
-        assert idaapi.get_func(start_ea) is None
+        assert get_func_info(start_ea) is None
 
         define_result = define_func({"addr": hex(start_ea), "end": hex(end_ea)})[0]
         if "error" in define_result:
             define_code({"addr": hex(start_ea)})
             define_result = define_func({"addr": hex(start_ea), "end": hex(end_ea)})[0]
         assert "error" not in define_result
-        recreated = idaapi.get_func(start_ea)
+        recreated = get_func_info(start_ea)
         assert recreated is not None
         assert recreated.start_ea == start_ea
         assert recreated.end_ea == end_ea
     finally:
-        if idaapi.get_func(start_ea) is None:
+        if get_func_info(start_ea) is None:
             define_code({"addr": hex(start_ea)})
             define_func({"addr": hex(start_ea), "end": hex(end_ea)})
 
@@ -464,10 +463,8 @@ def test_rename_function_same_name_is_stable():
 @test(binary="typed_fixture.elf")
 def test_undefine_single_byte_and_restore():
     """undefine(size=1) works on code bytes and the function can be fully restored afterwards."""
-    import idaapi
-
     addr = 0x1013EF0
-    func = idaapi.get_func(addr)
+    func = get_func_info(addr)
     if not func:
         skip_test("typed_fixture main function not present")
     end_ea = func.end_ea
@@ -477,16 +474,14 @@ def test_undefine_single_byte_and_restore():
         assert "error" not in result
     finally:
         define_code({"addr": hex(addr)})
-        if idaapi.get_func(addr) is None:
+        if get_func_info(addr) is None:
             define_func({"addr": hex(addr), "end": hex(end_ea)})
 
 
 @test(binary="crackme03.elf")
 def test_undefine_batch():
     """undefine accepts batch input and can restore a small function afterwards."""
-    import idaapi
-
-    func = idaapi.get_func(int(CRACKME_FRAME_DUMMY, 16))
+    func = get_func_info(int(CRACKME_FRAME_DUMMY, 16))
     if not func:
         skip_test("frame_dummy function not present")
 
@@ -497,7 +492,7 @@ def test_undefine_batch():
         assert_is_list(result, min_length=1)
         assert "error" not in result[0]
     finally:
-        if idaapi.get_func(start_ea) is None:
+        if get_func_info(start_ea) is None:
             define_code({"addr": hex(start_ea)})
             define_func({"addr": hex(start_ea), "end": hex(end_ea)})
 
@@ -699,14 +694,14 @@ def test_set_op_type_stroff_with_valid_struct():
 
     Uses 'Point' which the typed_fixture binary has declared in its IDB.
     """
-    import idautils, ida_funcs
+    import idautils
 
     fn_addr = get_any_function()
     if not fn_addr:
         skip_test("binary has no functions")
 
     # Find the first instruction with a memory-displacement operand.
-    func = ida_funcs.get_func(int(fn_addr, 16))
+    func = get_func_info(int(fn_addr, 16))
     if not func:
         skip_test("no func at addr")
     target_ea = None

@@ -24,6 +24,7 @@ from ..api_types import (
     type_apply_batch,
     infer_types,
 )
+from ..utils import get_segment_info
 
 
 TEST_STRUCT_NAME = "__TestStruct__"
@@ -189,14 +190,14 @@ def _find_bss_addr() -> int | None:
     import idautils
 
     for seg_ea in idautils.Segments():
-        seg = idaapi.getseg(seg_ea)
+        seg = get_segment_info(seg_ea)
         if seg is None:
             continue
-        if seg.type == idaapi.SEG_BSS:
+        if seg.get_type() == idaapi.SEG_BSS:
             return seg.start_ea
 
     for seg_ea in idautils.Segments():
-        seg = idaapi.getseg(seg_ea)
+        seg = get_segment_info(seg_ea)
         if seg is None:
             continue
         if not ida_bytes.is_loaded(seg.start_ea):

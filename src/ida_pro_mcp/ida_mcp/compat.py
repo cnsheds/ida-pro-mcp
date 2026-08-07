@@ -55,13 +55,6 @@ def _check_required_apis(version: tuple[int, int, int]) -> None:
 
     missing = []
 
-    # Check func_t methods (added in 8.5, missing in 9.0 SP0)
-    func = ida_funcs.func_t()
-    if not hasattr(func, "get_name"):
-        missing.append("func_t.get_name")
-    if not hasattr(func, "get_prototype"):
-        missing.append("func_t.get_prototype")
-
     # Check tinfo_t methods (added in 8.5, missing in 9.0 SP0)
     tif = ida_typeinf.tinfo_t()
     if not hasattr(tif, "get_udm"):
@@ -211,20 +204,13 @@ def inf_is_64bit() -> bool:
 # ============================================================================
 
 
-def get_func_name(func: ida_funcs.func_t) -> str | None:
-    # func_t.get_name() introduced in 8.5, but missing in early 9.0 builds (build 240925)
-    # Use hasattr() to handle early IDA 9.0 builds that lack the method
-    if IDA_GE_85 and hasattr(func, "get_name"):
-        return func.get_name()
+def get_func_name(func: ida_funcs.func_entry_info_t) -> str | None:
     return ida_funcs.get_func_name(func.start_ea)
 
 
-def get_func_prototype(func: ida_funcs.func_t) -> ida_typeinf.tinfo_t | None:
-    # func_t.get_prototype() introduced in 8.5, but missing in early 9.0 builds (build 240925)
-    # Use hasattr() to handle early IDA 9.0 builds that lack the method
-    if IDA_GE_85 and hasattr(func, "get_prototype"):
-        return func.get_prototype()
-
+def get_func_prototype(
+    func: ida_funcs.func_entry_info_t,
+) -> ida_typeinf.tinfo_t | None:
     tif = ida_typeinf.tinfo_t()
     if ida_nalt.get_tinfo(tif, func.start_ea) and tif.is_func():
         return tif

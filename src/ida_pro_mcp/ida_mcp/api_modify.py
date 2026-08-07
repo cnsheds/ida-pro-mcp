@@ -17,6 +17,7 @@ from .rpc import tool
 from .sync import idasync, IDAError
 from .utils import (
     parse_address,
+    get_func_info,
     decompile_checked,
     refresh_decompiler_ctext,
     hexrays_local_var_exists,
@@ -261,7 +262,7 @@ def append_comments(
                 results.append({"addr": addr_str, "error": f"Unsupported scope: {scope}"})
                 continue
 
-            fn = idaapi.get_func(ea)
+            fn = get_func_info(ea)
             use_func_comment = scope == "func" or (
                 scope == "auto" and fn is not None and fn.start_ea == ea
             )
@@ -495,7 +496,7 @@ def rename(
                     continue
 
                 ea = parse_address(addr_text)
-                func = idaapi.get_func(ea)
+                func = get_func_info(ea)
                 if not func:
                     result = {
                         "addr": addr_text,
@@ -632,7 +633,7 @@ def rename(
                         break
                     continue
 
-                func = idaapi.get_func(parse_address(func_addr))
+                func = get_func_info(parse_address(func_addr))
                 if not func:
                     result = {
                         "func_addr": func_addr,
@@ -717,7 +718,7 @@ def rename(
                         break
                     continue
 
-                func = idaapi.get_func(parse_address(func_addr))
+                func = get_func_info(parse_address(func_addr))
                 if not func:
                     result = {
                         "func_addr": func_addr,
@@ -732,7 +733,7 @@ def rename(
                     continue
 
                 frame_tif = ida_typeinf.tinfo_t()
-                if not ida_frame.get_func_frame(frame_tif, func):
+                if not ida_frame.get_func_frame_ea(frame_tif, func.start_ea):
                     result = {
                         "func_addr": func_addr,
                         "old": old_name,
@@ -776,7 +777,7 @@ def rename(
                 udm = ida_typeinf.udm_t()
                 frame_tif.get_udm_by_tid(udm, tid)
                 offset = udm.offset // 8
-                if ida_frame.is_funcarg_off(func, offset):
+                if ida_frame.is_funcarg_off_ea(func.start_ea, offset):
                     result = {
                         "func_addr": func_addr,
                         "old": old_name,
@@ -797,8 +798,10 @@ def rename(
                         success = False
                         error = f"Stack variable name {new_name!r} already exists"
                     else:
-                        sval = ida_frame.soff_to_fpoff(func, offset)
-                        success = ida_frame.define_stkvar(func, new_name, sval, udm.type)
+                        sval = ida_frame.soff_to_fpoff_ea(func.start_ea, offset)
+                        success = ida_frame.define_stkvar_ea(
+                            func.start_ea, new_name, sval, udm.type
+                        )
                         if not success:
                             error = (
                                 f"Rename failed: could not rename stack variable "
@@ -919,7 +922,7 @@ def define_func(items: list[DefineOp] | DefineOp) -> list[DefineResult]:
             end_ea = parse_address(end_str) if end_str else idaapi.BADADDR
 
             # Check if already a function
-            existing = idaapi.get_func(start_ea)
+            existing = get_func_info(start_ea)
             if existing and existing.start_ea == start_ea:
                 results.append(
                     {
@@ -932,7 +935,7 @@ def define_func(items: list[DefineOp] | DefineOp) -> list[DefineResult]:
 
             success = ida_funcs.add_func(start_ea, end_ea)
             if success:
-                func = idaapi.get_func(start_ea)
+                func = get_func_info(start_ea)
                 results.append(
                     {
                         "addr": addr_str,
@@ -1084,7 +1087,7 @@ def force_recompile(
                 continue
             try:
                 ea = parse_address(addr_str)
-                func = ida_funcs.get_func(ea)
+                func = get_func_info(ea)
                 if func is not None:
                     targets.append(func.start_ea)
             except Exception:

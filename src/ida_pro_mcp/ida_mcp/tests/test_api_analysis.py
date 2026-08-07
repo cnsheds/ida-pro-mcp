@@ -32,6 +32,7 @@ from ..api_analysis import (
     export_funcs,
     callgraph,
 )
+from ..utils import get_func_info, get_segment_info
 
 
 CRACKME_CHECK_PW = "0x11a9"
@@ -226,7 +227,7 @@ def test_disasm_interior_address_preserves_cursor():
     if not fn_addr:
         skip_test("binary has no functions")
 
-    func = idaapi.get_func(int(fn_addr, 16))
+    func = get_func_info(int(fn_addr, 16))
     if not func:
         skip_test("IDA could not resolve function object")
 
@@ -448,11 +449,10 @@ def test_xrefs_to_invalid():
 def _find_address_without_xrefs() -> str | None:
     """Return a mapped address with no incoming xrefs, if one exists."""
     import ida_bytes
-    import idaapi
     import idautils
 
     for seg_ea in idautils.Segments():
-        seg = idaapi.getseg(seg_ea)
+        seg = get_segment_info(seg_ea)
         if seg is None:
             continue
         for head in idautils.Heads(seg.start_ea, min(seg.end_ea, seg.start_ea + 0x4000)):

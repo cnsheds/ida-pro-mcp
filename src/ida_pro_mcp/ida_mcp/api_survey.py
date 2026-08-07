@@ -11,7 +11,7 @@ from .rpc import tool
 from .sync import idasync, tool_timeout
 from . import compat
 from .api_core import _get_strings_cache
-from .utils import get_image_size
+from .utils import get_func_info, get_image_size, get_segment_info
 
 
 class SurveyMetadata(TypedDict):
@@ -160,18 +160,18 @@ def _build_segments() -> list[dict]:
 
     segments = []
     for seg_ea in idautils.Segments():
-        seg = idaapi.getseg(seg_ea)
+        seg = get_segment_info(seg_ea)
         if not seg:
             continue
         perms = []
-        if seg.perm & idaapi.SEGPERM_READ:
+        if seg.get_perm() & idaapi.SEGPERM_READ:
             perms.append("r")
-        if seg.perm & idaapi.SEGPERM_WRITE:
+        if seg.get_perm() & idaapi.SEGPERM_WRITE:
             perms.append("w")
-        if seg.perm & idaapi.SEGPERM_EXEC:
+        if seg.get_perm() & idaapi.SEGPERM_EXEC:
             perms.append("x")
         segments.append({
-            "name": ida_segment.get_segm_name(seg),
+            "name": ida_segment.get_segment_name(seg.start_ea),
             "start": hex(seg.start_ea),
             "end": hex(seg.end_ea),
             "size": hex(seg.size()),
@@ -202,8 +202,8 @@ def _build_statistics(func_eas: list[int], string_count: int, segment_count: int
 
     for ea in func_eas:
         name = idc.get_name(ea, 0) or ""
-        func = idaapi.get_func(ea)
-        flags = func.flags if func else 0
+        func = get_func_info(ea)
+        flags = func.get_flags() if func else 0
 
         if name.startswith("sub_"):
             unnamed += 1
@@ -257,7 +257,7 @@ def _classify_func(ea: int, func, name: str, callee_count: int) -> str:
     """Classify function as thunk/wrapper/leaf/dispatcher/complex."""
     import idaapi
 
-    flags = func.flags
+    flags = func.get_flags()
     size = func.end_ea - func.start_ea
     if flags & idaapi.FUNC_THUNK or size <= 8:
         return "thunk"
@@ -278,11 +278,11 @@ def _build_interesting_functions(func_eas: list[int], truncated: bool) -> list[d
     candidates: list[tuple[int, int, str, int, int]] = []
 
     for ea in func_eas:
-        func = idaapi.get_func(ea)
+        func = get_func_info(ea)
         if not func:
             continue
         name = idc.get_name(ea, 0) or ""
-        flags = func.flags
+        flags = func.get_flags()
 
         if _is_library_func(ea, name, flags):
             continue
@@ -297,7 +297,7 @@ def _build_interesting_functions(func_eas: list[int], truncated: bool) -> list[d
 
     result = []
     for xref_count, ea, name, size, _flags in top:
-        func = idaapi.get_func(ea)
+        func = get_func_info(ea)
         callee_count = 0
         for item_ea in idautils.FuncItems(ea):
             for xref in idautils.XrefsFrom(item_ea, 0):

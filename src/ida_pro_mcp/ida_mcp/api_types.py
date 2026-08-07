@@ -17,6 +17,7 @@ from .utils import (
     pattern_filter,
     parse_address,
     get_type_by_name,
+    get_func_info,
     parse_decls_ctypes,
     my_modifier_t,
     hexrays_local_var_exists,
@@ -889,10 +890,10 @@ def _infer_type_edit_kind(edit: dict) -> str:
     if "addr" in edit and "name" in edit and _resolve_type_text(edit):
         # Heuristic: addr + frame name usually indicates stack variable updates.
         try:
-            fn = idaapi.get_func(parse_address(edit["addr"]))
+            fn = get_func_info(parse_address(edit["addr"]))
             if fn:
                 frame_tif = ida_typeinf.tinfo_t()
-                if ida_frame.get_func_frame(frame_tif, fn):
+                if ida_frame.get_func_frame_ea(frame_tif, fn.start_ea):
                     _, udm = tinfo_get_udm(frame_tif, str(edit["name"]))
                     if udm:
                         return "stack"
@@ -911,7 +912,7 @@ def _apply_type_edit(edit: dict[str, Any]) -> SetTypeResult:
             addr_text = str(edit.get("addr", "")).strip()
             if not addr_text:
                 return {"edit": edit, "kind": kind, "error": "Function address is required"}
-            func = idaapi.get_func(parse_address(addr_text))
+            func = get_func_info(parse_address(addr_text))
             if not func:
                 return {"edit": edit, "kind": kind, "error": "Function not found"}
 
@@ -959,7 +960,7 @@ def _apply_type_edit(edit: dict[str, Any]) -> SetTypeResult:
             if not var_name:
                 return {"edit": edit, "kind": kind, "error": "Local variable name is required"}
 
-            func = idaapi.get_func(parse_address(addr_text))
+            func = get_func_info(parse_address(addr_text))
             if not func:
                 return {"edit": edit, "kind": kind, "error": "Function not found"}
 
@@ -988,12 +989,12 @@ def _apply_type_edit(edit: dict[str, Any]) -> SetTypeResult:
             if not stack_name:
                 return {"edit": edit, "kind": kind, "error": "Stack variable name is required"}
 
-            func = idaapi.get_func(parse_address(addr_text))
+            func = get_func_info(parse_address(addr_text))
             if not func:
                 return {"edit": edit, "kind": kind, "error": "No function found"}
 
             frame_tif = ida_typeinf.tinfo_t()
-            if not ida_frame.get_func_frame(frame_tif, func):
+            if not ida_frame.get_func_frame_ea(frame_tif, func.start_ea):
                 return {"edit": edit, "kind": kind, "error": "No frame available"}
 
             idx, udm = tinfo_get_udm(frame_tif, stack_name)
