@@ -997,7 +997,7 @@ def refresh_decompiler_ctext(fn_addr: int):
     if not ida_hexrays.init_hexrays_plugin():
         return
     error = ida_hexrays.hexrays_failure_t()
-    cfunc: ida_hexrays.cfunc_t = ida_hexrays.decompile_func(
+    cfunc: ida_hexrays.cfunc_t = ida_hexrays.decompile_function(
         fn_addr, error, ida_hexrays.DECOMP_WARNINGS
     )
     if cfunc:
